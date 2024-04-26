@@ -9,10 +9,7 @@ import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -26,9 +23,9 @@ public class WsServer {
      */
     public static final Map<String, Session> sessionMap = new ConcurrentHashMap<>();
     /**
-     *  用于记录群组情况 群组号-组员 的MAP
+     *  用于记录整体群组情况 群组号-组员list 的MAP
      */
-    public static final Map<String, List<String>> groupMap = new ConcurrentHashMap<>();
+    public static final Map<String, Set<String>> groupMap = new ConcurrentHashMap<>();
     /**
      * 服务端与客户端连接成功时执行
      * @param session 会话
@@ -51,7 +48,9 @@ public class WsServer {
         log.info("与客户端连接成功，当前连接的客户端数量为：{}", count);
         String welcome = "欢迎您，" +username;
         sendOneMsg("SERVER",username,welcome,"txt");
-        broadcast("用户"+username+"已上线  "+"当前服务器人数: "+ count);
+        // 广播部分内容
+        broadcast("用户"+username+"已上线  "+"当前服务器人数: "+ count,"console");
+        broadcast(userList(username),"update_user");
     }
 
     /**
@@ -61,13 +60,12 @@ public class WsServer {
      */
     @OnMessage
     public void onMessage(String message, Session session, @PathParam("username") String username){
-        Set<MessageHandler> address = session.getMessageHandlers();
         JSONObject msgObj = new JSONObject();
         try{
             msgObj = JSON.parseObject(message);
         } catch(JSONException e){
             sendOneMsg("SERVER",username,"非json格式的错误消息","error");
-            log.info("*收到来自客户端的消息(非json格式)，客户端地址：{}，消息内容：{}", address, message);
+            log.info("*收到来自客户端的消息(非json格式)，用户名：{}，消息内容：{}", username, message);
             return;
         }
         String msgType = msgObj.getString("type");
@@ -80,9 +78,9 @@ public class WsServer {
         } else if(msgType.equals("add_group")){ // 处理进群信息
             addGroup(groupId,username);
         } else if(msgType.equals("side_txt")){
-            sendOneMsg(username,target,content,"txt");
+            sendOneMsg(username,target,content,msgType);
         } else if(msgType.equals("group_txt")){
-            sendGroupMsg(username,groupId,content,"txt");
+            sendGroupMsg(username,groupId,content,msgType);
         } else if(msgType.equals("exile")&&username.equals("ADMIN")){
             exile(target);
         } else if(msgType.equals("get_group_info")){
@@ -91,7 +89,7 @@ public class WsServer {
             sendOneMsg("SERVER",username,"未知类型的错误消息","error");
             log.info("未知类型的错误消息");
         }
-        log.info("收到来自客户端的消息，客户端地址：{}，消息内容：{}", address, message);
+        log.info("收到来自客户端的消息，用户名：{}，消息内容：{}", username, message);
     }
 
     /**
@@ -112,10 +110,10 @@ public class WsServer {
 //        if(username.equals("ADMIN")) return;
         //集合中的客户端对象-1
         sessionMap.remove(username);
+        broadcast(userList(username),"update_user");
         int count = sessionMap.size();
         log.info("服务端断开连接，当前连接的客户端数量为：{}", count);
     }
-
 
     public static void sendOneMsg(String source, String target, String content, String type){
         Session targetSession = sessionMap.get(target);
@@ -134,14 +132,17 @@ public class WsServer {
         }
     }
     public static void sendGroupMsg(String source, String groupId, String content, String type){
-        List<String> members = groupMap.get(groupId);
-        if(members.isEmpty()) return;
-        for(String member : members)
+        log.info(groupId);
+        Set<String> members = groupMap.getOrDefault(groupId,null);
+        if(members==null) return;
+        for(String member : members){
+            if(member.equals(source)) continue;
             sendOneMsg(source,member,content,type);
+        }
     }
-    public static void broadcast(String content){
+    public static void broadcast(String content, String type){
         for(String username : sessionMap.keySet()){
-            sendOneMsg("SERVER",username,content,"txt");
+            sendOneMsg("SERVER",username,content,type);
         }
     }
     public static void sendGroupInfo(String groupId, String username) {
@@ -161,9 +162,9 @@ public class WsServer {
         }
     }
     public static void addGroup(String groupId, String username){
-        List<String> members = groupMap.get(groupId);
+        Set<String> members = groupMap.get(groupId);
         if(members==null){
-            members = new LinkedList<>();
+            members = new HashSet<>();
             groupMap.put(groupId,members);
         }
         members.add(username);
@@ -173,11 +174,30 @@ public class WsServer {
         log.info("用户{}加入群组{}, 该群组人数为{}",username, groupId, size);
     }
     private static JSONArray getGroupMembers(String groupId){
-        List<String> members = groupMap.get(groupId);
+        Set<String> members = groupMap.get(groupId);
         JSONArray ary = new JSONArray();
         if(members==null) return ary;
         ary.addAll(members);
         return ary;
+    }
+    public static String userList(String cur){
+        StringBuilder sb = new StringBuilder();
+        for(String user : sessionMap.keySet()){
+            if(user.equals(cur)) continue;
+            sb.append("^").append(user);
+        }
+        if(sb.length()==0) return "^";
+        sb.deleteCharAt(0);
+        return sb.toString();
+    }
+    public static String groupList(String username){
+        StringBuilder sb = new StringBuilder();
+        for(String group : groupMap.keySet()){
+            sb.append("^").append(group);
+        }
+        if(sb.length()==0) return "^";
+        sb.deleteCharAt(0);
+        return sb.toString();
     }
 }
 

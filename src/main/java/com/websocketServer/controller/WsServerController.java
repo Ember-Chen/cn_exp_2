@@ -17,6 +17,6 @@ public class WsServerController {
      */
     @PostMapping("/send2client")
     public void send2Client(@RequestBody String message){
-        WsServer.broadcast(message);
+        WsServer.broadcast(message,"txt");
     }
 }
