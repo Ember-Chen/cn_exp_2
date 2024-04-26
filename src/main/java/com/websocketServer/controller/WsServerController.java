@@ -1,6 +1,6 @@
-package com.server.controller;
+package com.websocketServer.controller;
 
-import com.server.server.WsServer;
+import com.websocketServer.server.WsServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
