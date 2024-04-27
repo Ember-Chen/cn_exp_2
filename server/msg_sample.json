@@ -1,0 +1,24 @@
+{
+  "exile": {
+    "type":"exile",
+    "target":"cjy"
+  },
+  "group_msg": {
+    "type":"group_txt",
+    "group_id": "1",
+    "content":"114514"
+  },
+  "side_msg": {
+    "type":"side_txt",
+    "target":"yjw",
+    "content":"ily"
+  },
+  "add_group": {
+    "type": "add_group",
+    "group_id":"1"
+  },
+  "group_info": {
+    "type": "get_group_info",
+    "group_id": "1"
+  }
+}
