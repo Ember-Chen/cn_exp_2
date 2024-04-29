@@ -1,0 +1,4 @@
+com\websocketServer\config\WsServerConfig.class
+com\websocketServer\controller\WsServerController.class
+com\websocketServer\WsServerApp.class
+com\websocketServer\server\WsServer.class
